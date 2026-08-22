@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import React, {
+    useEffect,
+    useState,
+} from "react";
 
 import {
     ArrowLeft,
@@ -6,6 +9,7 @@ import {
     Link2,
     CalendarDays,
     Clock,
+    Menu,
 } from "lucide-react";
 
 import {
@@ -13,14 +17,16 @@ import {
     useParams,
 } from "react-router-dom";
 
-import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 import Loading from "../components/Loading";
 
 import api from "../services/api";
 import formatDate from "../utils/formatDate";
 
 const Analytics = () => {
-    const { id } = useParams();
+
+    const { id } =
+        useParams();
 
     const [analytics, setAnalytics] =
         useState(null);
@@ -31,207 +37,384 @@ const Analytics = () => {
     const [error, setError] =
         useState("");
 
+    const [mobileOpen, setMobileOpen] =
+        useState(false);
+
+
     useEffect(() => {
-        const fetchAnalytics = async () => {
-            try {
-                const response =
-                    await api.get(
-                        `/analytics/${id}`
+
+        const fetchAnalytics =
+            async () => {
+
+                try {
+
+                    const response =
+                        await api.get(
+                            `/analytics/${id}`
+                        );
+
+                    setAnalytics(
+                        response.data
+                            .analytics
                     );
 
-                setAnalytics(
-                    response.data.analytics
-                );
-            } catch (error) {
-                setError(
-                    error.response?.data?.message ||
-                        "Unable to load analytics"
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
+                } catch (error) {
+
+                    setError(
+                        error.response
+                            ?.data
+                            ?.message ||
+                            "Unable to load analytics"
+                    );
+
+                } finally {
+
+                    setLoading(false);
+
+                }
+            };
 
         fetchAnalytics();
+
     }, [id]);
 
-    if (loading) {
-        return (
-            <>
-                <Navbar />
 
-                <Loading text="Loading analytics..." />
-            </>
+    if (loading) {
+
+        return (
+            <div className="dashboard-layout">
+
+                <Sidebar
+                    mobileOpen={
+                        mobileOpen
+                    }
+                    setMobileOpen={
+                        setMobileOpen
+                    }
+                />
+
+                <main className="dashboard-main">
+
+                    <Loading
+                        text="Loading analytics..."
+                    />
+
+                </main>
+
+            </div>
         );
     }
+
 
     if (error) {
-        return (
-            <>
-                <Navbar />
 
-                <main className="analytics-page">
-                    <div className="error-message">
-                        {error}
+        return (
+            <div className="dashboard-layout">
+
+                <Sidebar
+                    mobileOpen={
+                        mobileOpen
+                    }
+                    setMobileOpen={
+                        setMobileOpen
+                    }
+                />
+
+                <main className="dashboard-main">
+
+                    <div className="dashboard-content">
+
+                        <div className="error-message">
+                            {error}
+                        </div>
+
+                        <Link
+                            to="/analytics"
+                            className="back-link"
+                        >
+                            <ArrowLeft
+                                size={17}
+                            />
+
+                            Back to Analytics
+                        </Link>
+
                     </div>
 
-                    <Link
-                        to="/dashboard"
-                        className="back-link"
-                    >
-                        <ArrowLeft size={17} />
-                        Back to Dashboard
-                    </Link>
                 </main>
-            </>
+
+            </div>
         );
     }
 
+
     return (
-        <div className="app">
-            <Navbar />
+        <div className="dashboard-layout">
 
-            <main className="analytics-page">
-                <Link
-                    to="/dashboard"
-                    className="back-link"
-                >
-                    <ArrowLeft size={17} />
-                    Back to Dashboard
-                </Link>
+            <Sidebar
+                mobileOpen={
+                    mobileOpen
+                }
+                setMobileOpen={
+                    setMobileOpen
+                }
+            />
 
-                <div className="analytics-header">
-                    <div>
-                        <p className="eyebrow">
-                            Analytics
-                        </p>
+            <main className="dashboard-main">
 
-                        <h1>
-                            Link Performance
-                        </h1>
+                {/* Topbar */}
+                <header className="dashboard-topbar">
 
-                        <a
-                            href={
-                                analytics.url.shortUrl
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="analytics-short-url"
-                        >
-                            {analytics.url.shortUrl}
-                        </a>
-                    </div>
-                </div>
+                    <button
+                        className="mobile-menu-button"
+                        onClick={() =>
+                            setMobileOpen(
+                                true
+                            )
+                        }
+                    >
+                        <Menu size={22} />
+                    </button>
 
-                <div className="analytics-stats">
-                    <div className="analytics-stat">
-                        <MousePointerClick
-                            size={24}
+                    <div className="topbar-spacer" />
+
+                </header>
+
+
+                <div className="dashboard-content">
+
+                    {/* Back */}
+                    <Link
+                        to="/analytics"
+                        className="back-link"
+                    >
+                        <ArrowLeft
+                            size={17}
                         />
 
-                        <span>
-                            Total Clicks
-                        </span>
+                        Back to Analytics
+                    </Link>
 
-                        <strong>
-                            {analytics.totalClicks}
-                        </strong>
-                    </div>
 
-                    <div className="analytics-stat">
-                        <CalendarDays
-                            size={24}
-                        />
+                    {/* Header */}
+                    <div className="dashboard-heading">
 
-                        <span>
-                            Created
-                        </span>
-
-                        <strong>
-                            {formatDate(
-                                analytics.createdAt
-                            )}
-                        </strong>
-                    </div>
-
-                    <div className="analytics-stat">
-                        <Clock size={24} />
-
-                        <span>
-                            Last Click
-                        </span>
-
-                        <strong>
-                            {formatDate(
-                                analytics.lastClickedAt
-                            )}
-                        </strong>
-                    </div>
-                </div>
-
-                <div className="analytics-card">
-                    <div className="analytics-card-header">
                         <div>
-                            <h2>
-                                Click History
-                            </h2>
 
-                            <p>
-                                Recent activity for
-                                this short link.
+                            <p className="analytics-eyebrow">
+                                LINK ANALYTICS
                             </p>
+
+                            <h1>
+                                Link Performance
+                            </h1>
+
+                            {analytics?.url
+                                ?.shortUrl && (
+                                <a
+                                    href={
+                                        analytics
+                                            .url
+                                            .shortUrl
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="analytics-short-url"
+                                >
+                                    {
+                                        analytics
+                                            .url
+                                            .shortUrl
+                                    }
+                                </a>
+                            )}
+
                         </div>
 
-                        <Link2 size={22} />
                     </div>
 
-                    {analytics.clicks?.length === 0 ? (
-                        <div className="empty-state">
-                            <MousePointerClick
-                                size={40}
-                            />
 
-                            <h3>
-                                No clicks yet
-                            </h3>
+                    {/* Stats */}
+                    <div className="dashboard-stats">
 
-                            <p>
-                                Share your short link
-                                to start collecting
-                                analytics.
-                            </p>
+                        <div className="stats-card">
+
+                            <div className="stats-card-icon">
+                                <MousePointerClick
+                                    size={21}
+                                />
+                            </div>
+
+                            <div>
+
+                                <span>
+                                    Total Clicks
+                                </span>
+
+                                <strong>
+                                    {
+                                        analytics
+                                            .totalClicks
+                                    }
+                                </strong>
+
+                                <small>
+                                    All time clicks
+                                </small>
+
+                            </div>
+
                         </div>
-                    ) : (
-                        <div className="click-list">
-                            {analytics.clicks.map(
-                                (click) => (
-                                    <div
-                                        className="click-item"
-                                        key={click._id}
-                                    >
-                                        <div>
-                                            <strong>
-                                                Click
-                                            </strong>
 
-                                            <p>
-                                                {click.userAgent ||
-                                                    "Unknown browser"}
-                                            </p>
+
+                        <div className="stats-card">
+
+                            <div className="stats-card-icon">
+                                <CalendarDays
+                                    size={21}
+                                />
+                            </div>
+
+                            <div>
+
+                                <span>
+                                    Created
+                                </span>
+
+                                <strong>
+                                    {formatDate(
+                                        analytics.createdAt
+                                    )}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="stats-card">
+
+                            <div className="stats-card-icon">
+                                <Clock size={21} />
+                            </div>
+
+                            <div>
+
+                                <span>
+                                    Last Click
+                                </span>
+
+                                <strong>
+                                    {formatDate(
+                                        analytics.lastClickedAt
+                                    )}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    {/* Click history */}
+                    <div className="analytics-card">
+
+                        <div className="analytics-card-header">
+
+                            <div>
+
+                                <h2>
+                                    Click History
+                                </h2>
+
+                                <p>
+                                    Recent activity for
+                                    this short link.
+                                </p>
+
+                            </div>
+
+                            <Link2 size={22} />
+
+                        </div>
+
+
+                        {!analytics.clicks ||
+                        analytics.clicks.length ===
+                            0 ? (
+
+                            <div className="empty-state">
+
+                                <MousePointerClick
+                                    size={40}
+                                />
+
+                                <h3>
+                                    No clicks yet
+                                </h3>
+
+                                <p>
+                                    Share your short
+                                    link to start
+                                    collecting
+                                    analytics.
+                                </p>
+
+                            </div>
+
+                        ) : (
+
+                            <div className="click-list">
+
+                                {analytics.clicks.map(
+                                    (
+                                        click
+                                    ) => (
+
+                                        <div
+                                            className="click-item"
+                                            key={
+                                                click._id
+                                            }
+                                        >
+
+                                            <div>
+
+                                                <strong>
+                                                    Click
+                                                </strong>
+
+                                                <p>
+                                                    {
+                                                        click.userAgent ||
+                                                        "Unknown browser"
+                                                    }
+                                                </p>
+
+                                            </div>
+
+                                            <span>
+                                                {formatDate(
+                                                    click.clickedAt
+                                                )}
+                                            </span>
+
                                         </div>
 
-                                        <span>
-                                            {formatDate(
-                                                click.clickedAt
-                                            )}
-                                        </span>
-                                    </div>
-                                )
-                            )}
-                        </div>
-                    )}
+                                    )
+                                )}
+
+                            </div>
+
+                        )}
+
+                    </div>
+
                 </div>
+
             </main>
+
         </div>
     );
 };

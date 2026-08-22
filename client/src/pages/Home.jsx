@@ -12,6 +12,8 @@ import {
 } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
+import AdBanner from "../components/AdBanner";
+
 import { useAuth } from "../context/AuthContext";
 
 const Home = () => {
@@ -28,11 +30,19 @@ const Home = () => {
 
     return (
         <div className="app">
+
             <Navbar />
 
+            {/* Advertisement */}
+            <AdBanner />
+
             <main className="home">
+
+                {/* Hero Section */}
                 <section className="hero">
+
                     <div className="hero-content">
+
                         <div className="hero-badge">
                             <LinkIcon size={15} />
                             Simple. Fast. Trackable.
@@ -41,6 +51,7 @@ const Home = () => {
                         <h1>
                             Short links.
                             <br />
+
                             <span>
                                 Bigger possibilities.
                             </span>
@@ -54,12 +65,16 @@ const Home = () => {
                         </p>
 
                         <div className="hero-actions">
+
                             <button
                                 className="primary-btn hero-btn"
                                 onClick={handleStart}
                             >
                                 Get Started
-                                <ArrowRight size={18} />
+
+                                <ArrowRight
+                                    size={18}
+                                />
                             </button>
 
                             {!user && (
@@ -70,12 +85,19 @@ const Home = () => {
                                     Login
                                 </Link>
                             )}
+
                         </div>
+
                     </div>
+
                 </section>
 
+
+                {/* Features */}
                 <section className="features">
+
                     <div className="feature-card">
+
                         <div className="feature-icon">
                             <LinkIcon size={24} />
                         </div>
@@ -89,9 +111,12 @@ const Home = () => {
                             links using your own
                             custom path.
                         </p>
+
                     </div>
 
+
                     <div className="feature-card">
+
                         <div className="feature-icon">
                             <BarChart3 size={24} />
                         </div>
@@ -105,9 +130,12 @@ const Home = () => {
                             understand how your links
                             are being used.
                         </p>
+
                     </div>
 
+
                     <div className="feature-card">
+
                         <div className="feature-icon">
                             <Clock size={24} />
                         </div>
@@ -120,9 +148,12 @@ const Home = () => {
                             Set expiration periods
                             for temporary links.
                         </p>
+
                     </div>
 
+
                     <div className="feature-card">
+
                         <div className="feature-icon">
                             <ShieldCheck size={24} />
                         </div>
@@ -135,9 +166,13 @@ const Home = () => {
                             Your links are protected
                             with JWT authentication.
                         </p>
+
                     </div>
+
                 </section>
+
             </main>
+
         </div>
     );
 };
