@@ -1,70 +1,6 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// =========================================
-// ENVIRONMENT VALIDATION
-// =========================================
-
-if (!process.env.EMAIL_USER) {
-    console.error("❌ EMAIL_USER is missing");
-}
-
-if (!process.env.EMAIL_APP_PASSWORD) {
-    console.error("❌ EMAIL_APP_PASSWORD is missing");
-}
-
-
-// =========================================
-// CREATE EMAIL TRANSPORTER
-// =========================================
-
-const transporter = nodemailer.createTransport({
-    service: "gmail",
-
-    host: "smtp.gmail.com",
-
-    port: 465,
-
-    secure: true,
-
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_APP_PASSWORD,
-    },
-
-    tls: {
-        rejectUnauthorized: true,
-    },
-});
-
-
-// =========================================
-// VERIFY SMTP CONNECTION
-// =========================================
-
-transporter.verify((error, success) => {
-
-    if (error) {
-
-        console.error(
-            "❌ Gmail SMTP connection failed:"
-        );
-
-        console.error(error);
-
-    } else {
-
-        console.log(
-            "✅ Gmail SMTP connection successful"
-        );
-
-    }
-
-});
-
-
-// =========================================
-// SEND VERIFICATION EMAIL
-// =========================================
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendVerificationEmail = async (
     email,
@@ -74,36 +10,11 @@ export const sendVerificationEmail = async (
 
     try {
 
-        // -----------------------------------------
-        // Validate environment variables
-        // -----------------------------------------
+        const { data, error } = await resend.emails.send({
 
-        if (!process.env.EMAIL_USER) {
+            from: "Shortly <onboarding@resend.dev>",
 
-            throw new Error(
-                "EMAIL_USER environment variable is missing"
-            );
-
-        }
-
-        if (!process.env.EMAIL_APP_PASSWORD) {
-
-            throw new Error(
-                "EMAIL_APP_PASSWORD environment variable is missing"
-            );
-
-        }
-
-
-        // -----------------------------------------
-        // Mail options
-        // -----------------------------------------
-
-        const mailOptions = {
-
-            from: `"Shortly" <${process.env.EMAIL_USER}>`,
-
-            to: email,
+            to: [email],
 
             subject: "Verify your Shortly account",
 
@@ -130,23 +41,19 @@ export const sendVerificationEmail = async (
                             Welcome to Shortly 🚀
                         </h2>
 
-
                         <p>
                             Hello ${name},
                         </p>
-
 
                         <p>
                             Thank you for creating your
                             Shortly account.
                         </p>
 
-
                         <p>
                             Use the verification code below
                             to verify your email address:
                         </p>
-
 
                         <div style="
                             background: #f1f0ff;
@@ -167,12 +74,10 @@ export const sendVerificationEmail = async (
 
                         </div>
 
-
                         <p>
                             This code will expire in
                             <strong>10 minutes</strong>.
                         </p>
-
 
                         <p>
                             If you did not create this
@@ -180,13 +85,11 @@ export const sendVerificationEmail = async (
                             this email.
                         </p>
 
-
                         <hr style="
                             border: none;
                             border-top: 1px solid #eee;
                             margin: 25px 0;
                         ">
-
 
                         <p style="
                             color: #888;
@@ -199,61 +102,37 @@ export const sendVerificationEmail = async (
 
                 </div>
             `,
-        };
+        });
 
+        if (error) {
 
-        // -----------------------------------------
-        // Send email
-        // -----------------------------------------
+            console.error(
+                "❌ Resend email error:",
+                error
+            );
 
-        const info = await transporter.sendMail(
-            mailOptions
-        );
-
-
-        console.log(
-            "✅ Verification email sent successfully"
-        );
+            throw new Error(
+                error.message || "Failed to send email"
+            );
+        }
 
         console.log(
-            "Message ID:",
-            info.messageId
+            "✅ Verification email sent successfully:",
+            data?.id
         );
 
-
-        return info;
-
+        return data;
 
     } catch (error) {
 
-        // -----------------------------------------
-        // Detailed error logging
-        // -----------------------------------------
-
         console.error(
-            "❌ Failed to send verification email"
+            "❌ Failed to send verification email:"
         );
 
         console.error(
-            "Error code:",
-            error.code
-        );
-
-        console.error(
-            "Error command:",
-            error.command
-        );
-
-        console.error(
-            "Error response:",
-            error.response
-        );
-
-        console.error(
-            "Error message:",
+            "Error:",
             error.message
         );
-
 
         throw error;
     }
