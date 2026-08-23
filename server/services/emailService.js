@@ -15,6 +15,13 @@ const sendVerificationEmail = async (
         const publicKey =
             process.env.EMAILJS_PUBLIC_KEY;
 
+        const privateKey =
+            process.env.EMAILJS_PRIVATE_KEY;
+
+        // ==============================
+        // CHECK ENV VARIABLES
+        // ==============================
+
         if (!serviceId) {
             throw new Error(
                 "EMAILJS_SERVICE_ID is missing"
@@ -33,6 +40,16 @@ const sendVerificationEmail = async (
             );
         }
 
+        if (!privateKey) {
+            throw new Error(
+                "EMAILJS_PRIVATE_KEY is missing"
+            );
+        }
+
+        // ==============================
+        // SEND EMAIL
+        // ==============================
+
         const response = await fetch(
             "https://api.emailjs.com/api/v1.0/email/send",
             {
@@ -49,6 +66,8 @@ const sendVerificationEmail = async (
 
                     user_id: publicKey,
 
+                    accessToken: privateKey,
+
                     template_params: {
                         to_email: email,
                         email: email,
@@ -62,6 +81,10 @@ const sendVerificationEmail = async (
 
         const result =
             await response.text();
+
+        // ==============================
+        // HANDLE ERROR
+        // ==============================
 
         if (!response.ok) {
             console.error(
@@ -81,6 +104,7 @@ const sendVerificationEmail = async (
         return true;
 
     } catch (error) {
+
         console.error(
             "❌ Failed to send verification email:"
         );
