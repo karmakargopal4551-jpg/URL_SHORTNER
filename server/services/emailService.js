@@ -1,139 +1,95 @@
-import { Resend } from "resend";
+import "dotenv/config";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-export const sendVerificationEmail = async (
+const sendVerificationEmail = async (
     email,
     name,
     verificationCode
 ) => {
-
     try {
+        const serviceId =
+            process.env.EMAILJS_SERVICE_ID;
 
-        const { data, error } = await resend.emails.send({
+        const templateId =
+            process.env.EMAILJS_TEMPLATE_ID;
 
-            from: "Shortly <onboarding@resend.dev>",
+        const publicKey =
+            process.env.EMAILJS_PUBLIC_KEY;
 
-            to: [email],
+        if (!serviceId) {
+            throw new Error(
+                "EMAILJS_SERVICE_ID is missing"
+            );
+        }
 
-            subject: "Verify your Shortly account",
+        if (!templateId) {
+            throw new Error(
+                "EMAILJS_TEMPLATE_ID is missing"
+            );
+        }
 
-            html: `
-                <div style="
-                    font-family: Arial, sans-serif;
-                    max-width: 600px;
-                    margin: auto;
-                    padding: 30px;
-                    background: #f8f9fc;
-                ">
+        if (!publicKey) {
+            throw new Error(
+                "EMAILJS_PUBLIC_KEY is missing"
+            );
+        }
 
-                    <div style="
-                        background: white;
-                        padding: 30px;
-                        border-radius: 12px;
-                        border: 1px solid #e5e7eb;
-                    ">
+        const response = await fetch(
+            "https://api.emailjs.com/api/v1.0/email/send",
+            {
+                method: "POST",
 
-                        <h2 style="
-                            color: #635bff;
-                            margin-bottom: 10px;
-                        ">
-                            Welcome to Shortly 🚀
-                        </h2>
+                headers: {
+                    "Content-Type": "application/json",
+                },
 
-                        <p>
-                            Hello ${name},
-                        </p>
+                body: JSON.stringify({
+                    service_id: serviceId,
 
-                        <p>
-                            Thank you for creating your
-                            Shortly account.
-                        </p>
+                    template_id: templateId,
 
-                        <p>
-                            Use the verification code below
-                            to verify your email address:
-                        </p>
+                    user_id: publicKey,
 
-                        <div style="
-                            background: #f1f0ff;
-                            padding: 20px;
-                            text-align: center;
-                            border-radius: 10px;
-                            margin: 25px 0;
-                        ">
+                    template_params: {
+                        to_email: email,
+                        email: email,
+                        name: name,
+                        verification_code:
+                            verificationCode,
+                    },
+                }),
+            }
+        );
 
-                            <span style="
-                                font-size: 32px;
-                                font-weight: bold;
-                                letter-spacing: 8px;
-                                color: #635bff;
-                            ">
-                                ${verificationCode}
-                            </span>
+        const result =
+            await response.text();
 
-                        </div>
-
-                        <p>
-                            This code will expire in
-                            <strong>10 minutes</strong>.
-                        </p>
-
-                        <p>
-                            If you did not create this
-                            account, you can safely ignore
-                            this email.
-                        </p>
-
-                        <hr style="
-                            border: none;
-                            border-top: 1px solid #eee;
-                            margin: 25px 0;
-                        ">
-
-                        <p style="
-                            color: #888;
-                            font-size: 12px;
-                        ">
-                            Shortly - URL Shortener
-                        </p>
-
-                    </div>
-
-                </div>
-            `,
-        });
-
-        if (error) {
-
+        if (!response.ok) {
             console.error(
-                "❌ Resend email error:",
-                error
+                "❌ EmailJS error:",
+                result
             );
 
             throw new Error(
-                error.message || "Failed to send email"
+                `EmailJS request failed: ${response.status} ${result}`
             );
         }
 
         console.log(
-            "✅ Verification email sent successfully:",
-            data?.id
+            `✅ Verification email sent to ${email}`
         );
 
-        return data;
+        return true;
 
     } catch (error) {
-
         console.error(
             "❌ Failed to send verification email:"
         );
 
-        console.error(
-            "Error:",
-            error.message
-        );
+        console.error(error);
 
         throw error;
     }
 };
+
+// IMPORTANT: named export
+export { sendVerificationEmail };
