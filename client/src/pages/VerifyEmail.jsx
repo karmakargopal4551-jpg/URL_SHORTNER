@@ -4,14 +4,15 @@ import {
 } from "react";
 
 import {
-    Link,
     useNavigate,
     useSearchParams,
+    Link,
 } from "react-router-dom";
 
 import {
-    MailCheck,
-    ShieldCheck,
+    CheckCircle,
+    AlertCircle,
+    Loader2,
     Link as LinkIcon,
 } from "lucide-react";
 
@@ -23,11 +24,9 @@ const VerifyEmail = () => {
     const navigate =
         useNavigate();
 
-
     const [
         searchParams,
     ] = useSearchParams();
-
 
     const {
         verifyEmail,
@@ -35,32 +34,19 @@ const VerifyEmail = () => {
     } = useAuth();
 
 
+    const email =
+        searchParams.get("email");
+
+    const code =
+        searchParams.get("code");
+
+
     const [
-        email,
-        setEmail,
+        verificationCode,
+        setVerificationCode,
     ] = useState(
-        searchParams.get(
-            "email"
-        ) || ""
+        code || ""
     );
-
-
-    const [
-        code,
-        setCode,
-    ] = useState("");
-
-
-    const [
-        error,
-        setError,
-    ] = useState("");
-
-
-    const [
-        success,
-        setSuccess,
-    ] = useState("");
 
 
     const [
@@ -76,70 +62,124 @@ const VerifyEmail = () => {
 
 
     const [
-        countdown,
-        setCountdown,
-    ] = useState(0);
+        success,
+        setSuccess,
+    ] = useState(false);
+
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+
+    const [
+        message,
+        setMessage,
+    ] = useState("");
 
 
     // =========================================
-    // COUNTDOWN
+    // AUTOMATIC VERIFICATION
     // =========================================
 
     useEffect(() => {
 
         if (
-            countdown <= 0
+            email &&
+            code
         ) {
 
-            return;
+            handleVerification(
+                email,
+                code
+            );
 
         }
 
+    }, []);
 
-        const timer =
-            setInterval(() => {
 
-                setCountdown(
-                    (previous) =>
-                        previous - 1
+    // =========================================
+    // VERIFY EMAIL
+    // =========================================
+
+    const handleVerification =
+        async (
+            verifyEmailAddress,
+            verifyCode
+        ) => {
+
+            try {
+
+                setLoading(true);
+
+                setError("");
+
+                setMessage("");
+
+
+                await verifyEmail(
+                    verifyEmailAddress,
+                    verifyCode
                 );
 
-            }, 1000);
+
+                setSuccess(true);
 
 
-        return () => {
+                // Redirect after verification
+                setTimeout(() => {
 
-            clearInterval(
-                timer
-            );
+                    navigate(
+                        "/dashboard"
+                    );
+
+                }, 2000);
+
+
+            } catch (error) {
+
+                console.error(
+                    "Email verification failed:",
+                    error
+                );
+
+
+                setError(
+
+                    error.response
+                        ?.data
+                        ?.message ||
+
+                    "Invalid or expired verification code."
+
+                );
+
+            } finally {
+
+                setLoading(false);
+
+            }
 
         };
 
-    }, [countdown]);
-
 
     // =========================================
-    // VERIFY
+    // MANUAL VERIFY
     // =========================================
 
-    const handleVerify = async (
+    const handleSubmit = async (
         e
     ) => {
 
         e.preventDefault();
 
 
-        setError("");
-
-        setSuccess("");
-
-
-        if (
-            !email.trim()
-        ) {
+        if (!email) {
 
             setError(
-                "Please enter your email."
+                "Email address is missing."
             );
 
             return;
@@ -148,7 +188,8 @@ const VerifyEmail = () => {
 
 
         if (
-            code.length !== 6
+            !verificationCode ||
+            verificationCode.length !== 6
         ) {
 
             setError(
@@ -160,69 +201,24 @@ const VerifyEmail = () => {
         }
 
 
-        try {
-
-            setLoading(true);
-
-
-            await verifyEmail(
-                email,
-                code
-            );
-
-
-            setSuccess(
-                "Email verified successfully! Redirecting..."
-            );
-
-
-            setTimeout(() => {
-
-                navigate(
-                    "/dashboard"
-                );
-
-            }, 1000);
-
-
-        } catch (error) {
-
-            setError(
-
-                error.response
-                    ?.data
-                    ?.message ||
-
-                "Invalid verification code."
-
-            );
-
-        } finally {
-
-            setLoading(false);
-
-        }
+        await handleVerification(
+            email,
+            verificationCode
+        );
 
     };
 
 
     // =========================================
-    // RESEND
+    // RESEND CODE
     // =========================================
 
     const handleResend = async () => {
 
-        setError("");
-
-        setSuccess("");
-
-
-        if (
-            !email.trim()
-        ) {
+        if (!email) {
 
             setError(
-                "Please enter your email."
+                "Email address is missing."
             );
 
             return;
@@ -232,27 +228,35 @@ const VerifyEmail = () => {
 
         try {
 
-            setResendLoading(
-                true
-            );
+            setResendLoading(true);
+
+            setError("");
+
+            setMessage("");
 
 
-            await resendVerificationCode(
-                email
-            );
+            const response =
+                await resendVerificationCode(
+                    email
+                );
 
 
-            setSuccess(
+            setMessage(
+
+                response?.message ||
+
                 "A new verification code has been sent to your email."
-            );
 
-
-            setCountdown(
-                60
             );
 
 
         } catch (error) {
+
+            console.error(
+                "Resend verification failed:",
+                error
+            );
+
 
             setError(
 
@@ -266,14 +270,129 @@ const VerifyEmail = () => {
 
         } finally {
 
-            setResendLoading(
-                false
-            );
+            setResendLoading(false);
 
         }
 
     };
 
+
+    // =========================================
+    // SUCCESS SCREEN
+    // =========================================
+
+    if (success) {
+
+        return (
+
+            <div className="auth-page">
+
+                <div className="auth-card">
+
+                    <div className="auth-logo">
+
+                        <CheckCircle
+                            size={28}
+                        />
+
+                    </div>
+
+
+                    <h1>
+                        Email Verified!
+                    </h1>
+
+
+                    <p className="auth-subtitle">
+
+                        Your email has been
+                        successfully verified.
+
+                    </p>
+
+
+                    <div className="success-message">
+
+                        <CheckCircle
+                            size={18}
+                        />
+
+                        Account verified
+                        successfully.
+
+                    </div>
+
+
+                    <p
+                        style={{
+                            marginTop: "20px",
+                            textAlign: "center",
+                        }}
+                    >
+
+                        Redirecting to
+                        dashboard...
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        );
+
+    }
+
+
+    // =========================================
+    // LOADING SCREEN
+    // =========================================
+
+    if (
+        loading &&
+        code
+    ) {
+
+        return (
+
+            <div className="auth-page">
+
+                <div className="auth-card">
+
+                    <div className="auth-logo">
+
+                        <Loader2
+                            size={28}
+                            className="spin"
+                        />
+
+                    </div>
+
+
+                    <h1>
+                        Verifying Email...
+                    </h1>
+
+
+                    <p className="auth-subtitle">
+
+                        Please wait while we
+                        verify your email address.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        );
+
+    }
+
+
+    // =========================================
+    // NORMAL VERIFICATION PAGE
+    // =========================================
 
     return (
 
@@ -286,31 +405,8 @@ const VerifyEmail = () => {
 
                 <div className="auth-logo">
 
-                    <LinkIcon size={28} />
-
-                </div>
-
-
-                {/* Icon */}
-
-                <div
-                    style={{
-                        display:
-                            "flex",
-
-                        justifyContent:
-                            "center",
-
-                        marginBottom:
-                            "15px",
-
-                        color:
-                            "#635bff",
-                    }}
-                >
-
-                    <MailCheck
-                        size={42}
+                    <LinkIcon
+                        size={28}
                     />
 
                 </div>
@@ -323,9 +419,8 @@ const VerifyEmail = () => {
 
                 <p className="auth-subtitle">
 
-                    We've sent a 6-digit
-                    verification code to
-                    your email address.
+                    Enter the 6-digit verification
+                    code sent to your email.
 
                 </p>
 
@@ -336,6 +431,10 @@ const VerifyEmail = () => {
 
                     <div className="error-message">
 
+                        <AlertCircle
+                            size={18}
+                        />
+
                         {error}
 
                     </div>
@@ -343,33 +442,17 @@ const VerifyEmail = () => {
                 )}
 
 
-                {/* Success */}
+                {/* Success message */}
 
-                {success && (
+                {message && (
 
-                    <div
-                        style={{
-                            padding:
-                                "10px 12px",
+                    <div className="success-message">
 
-                            marginBottom:
-                                "15px",
+                        <CheckCircle
+                            size={18}
+                        />
 
-                            borderRadius:
-                                "8px",
-
-                            background:
-                                "#ecfdf5",
-
-                            color:
-                                "#047857",
-
-                            fontSize:
-                                "13px",
-                        }}
-                    >
-
-                        {success}
+                        {message}
 
                     </div>
 
@@ -378,7 +461,7 @@ const VerifyEmail = () => {
 
                 <form
                     onSubmit={
-                        handleVerify
+                        handleSubmit
                     }
                 >
 
@@ -390,82 +473,70 @@ const VerifyEmail = () => {
                     </label>
 
 
-                    <div className="input-wrapper">
+                    <input
 
-                        <MailCheck
-                            size={18}
-                        />
+                        type="email"
 
-                        <input
+                        value={
+                            email || ""
+                        }
 
-                            type="email"
+                        disabled
 
-                            placeholder="you@example.com"
+                        className="auth-input"
 
-                            value={email}
-
-                            onChange={(e) =>
-                                setEmail(
-                                    e.target.value
-                                )
-                            }
-
-                            required
-
-                        />
-
-                    </div>
+                    />
 
 
-                    {/* OTP */}
+                    {/* Verification code */}
 
-                    <label>
+                    <label
+                        style={{
+                            marginTop: "16px",
+                        }}
+                    >
                         Verification Code
                     </label>
 
 
-                    <div className="input-wrapper">
+                    <input
 
-                        <ShieldCheck
-                            size={18}
-                        />
+                        type="text"
 
-                        <input
+                        value={
+                            verificationCode
+                        }
 
-                            type="text"
+                        onChange={(e) => {
 
-                            inputMode="numeric"
+                            const value =
+                                e.target.value
+                                    .replace(
+                                        /\D/g,
+                                        ""
+                                    )
+                                    .slice(
+                                        0,
+                                        6
+                                    );
 
-                            maxLength={6}
+                            setVerificationCode(
+                                value
+                            );
 
-                            placeholder="Enter 6-digit code"
+                        }}
 
-                            value={code}
+                        placeholder="Enter 6-digit code"
 
-                            onChange={(e) => {
+                        maxLength={6}
 
-                                const value =
-                                    e.target.value
-                                        .replace(
-                                            /\D/g,
-                                            ""
-                                        )
-                                        .slice(
-                                            0,
-                                            6
-                                        );
+                        inputMode="numeric"
 
-                                setCode(
-                                    value
-                                );
+                        required
 
-                            }}
+                        className="auth-input"
 
-                            required
-
-                        />
-
-                    </div>
+                    />
 
 
                     {/* Verify */}
@@ -482,16 +553,30 @@ const VerifyEmail = () => {
 
                     >
 
-                        <ShieldCheck
-                            size={18}
-                        />
+                        {loading ? (
 
+                            <>
+                                <Loader2
+                                    size={18}
+                                    className="spin"
+                                />
 
-                        {loading
+                                Verifying...
 
-                            ? "Verifying..."
+                            </>
 
-                            : "Verify Email"}
+                        ) : (
+
+                            <>
+                                <CheckCircle
+                                    size={18}
+                                />
+
+                                Verify Email
+
+                            </>
+
+                        )}
 
                     </button>
 
@@ -501,63 +586,46 @@ const VerifyEmail = () => {
 
                 {/* Resend */}
 
-                <button
-
-                    type="button"
-
-                    onClick={
-                        handleResend
-                    }
-
-                    disabled={
-                        resendLoading ||
-                        countdown > 0
-                    }
-
+                <div
                     style={{
-                        width:
-                            "100%",
-
-                        marginTop:
-                            "12px",
-
-                        border:
-                            "none",
-
-                        background:
-                            "transparent",
-
-                        color:
-                            countdown > 0
-                                ? "#999"
-                                : "#635bff",
-
-                        cursor:
-                            countdown > 0
-                                ? "default"
-                                : "pointer",
-
-                        fontWeight:
-                            "600",
-
-                        fontSize:
-                            "13px",
+                        textAlign: "center",
+                        marginTop: "20px",
                     }}
-
                 >
 
-                    {resendLoading
+                    <p>
+                        Didn't receive the code?
+                    </p>
 
-                        ? "Sending..."
 
-                        : countdown > 0
+                    <button
 
-                        ? `Resend code in ${countdown}s`
+                        type="button"
 
-                        : "Resend verification code"}
+                        onClick={
+                            handleResend
+                        }
 
-                </button>
+                        disabled={
+                            resendLoading
+                        }
 
+                        className="link-btn"
+
+                    >
+
+                        {resendLoading
+
+                            ? "Sending..."
+
+                            : "Resend Verification Code"}
+
+                    </button>
+
+                </div>
+
+
+                {/* Login */}
 
                 <p className="auth-footer">
 
@@ -570,7 +638,6 @@ const VerifyEmail = () => {
                     </Link>
 
                 </p>
-
 
             </div>
 

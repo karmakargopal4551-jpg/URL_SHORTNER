@@ -18,9 +18,8 @@ const sendVerificationEmail = async (
         const privateKey =
             process.env.EMAILJS_PRIVATE_KEY;
 
-        // ==============================
-        // CHECK ENV VARIABLES
-        // ==============================
+        const frontendUrl =
+            process.env.FRONTEND_URL;
 
         if (!serviceId) {
             throw new Error(
@@ -46,9 +45,23 @@ const sendVerificationEmail = async (
             );
         }
 
-        // ==============================
-        // SEND EMAIL
-        // ==============================
+        if (!frontendUrl) {
+            throw new Error(
+                "FRONTEND_URL is missing"
+            );
+        }
+
+        // Remove trailing slash
+        const cleanFrontendUrl =
+            frontendUrl.replace(/\/$/, "");
+
+        // URL that will open the React verification page
+        const verificationLink =
+            `${cleanFrontendUrl}/verify-email?email=${encodeURIComponent(
+                email
+            )}&code=${encodeURIComponent(
+                verificationCode
+            )}`;
 
         const response = await fetch(
             "https://api.emailjs.com/api/v1.0/email/send",
@@ -56,7 +69,8 @@ const sendVerificationEmail = async (
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type":
+                        "application/json",
                 },
 
                 body: JSON.stringify({
@@ -66,14 +80,21 @@ const sendVerificationEmail = async (
 
                     user_id: publicKey,
 
+                    // EmailJS private key
                     accessToken: privateKey,
 
                     template_params: {
                         to_email: email,
+
                         email: email,
+
                         name: name,
+
                         verification_code:
                             verificationCode,
+
+                        verification_link:
+                            verificationLink,
                     },
                 }),
             }
@@ -81,10 +102,6 @@ const sendVerificationEmail = async (
 
         const result =
             await response.text();
-
-        // ==============================
-        // HANDLE ERROR
-        // ==============================
 
         if (!response.ok) {
             console.error(
@@ -101,6 +118,10 @@ const sendVerificationEmail = async (
             `✅ Verification email sent to ${email}`
         );
 
+        console.log(
+            `🔗 Verification link: ${verificationLink}`
+        );
+
         return true;
 
     } catch (error) {
@@ -115,5 +136,6 @@ const sendVerificationEmail = async (
     }
 };
 
-// IMPORTANT: named export
-export { sendVerificationEmail };
+export {
+    sendVerificationEmail,
+};

@@ -13,7 +13,6 @@ import {
 // =========================================
 
 const generateToken = (userId) => {
-
     return jwt.sign(
         { userId },
         process.env.JWT_SECRET,
@@ -21,21 +20,30 @@ const generateToken = (userId) => {
             expiresIn: "7d",
         }
     );
-
 };
 
 
 // =========================================
-// GENERATE OTP
+// GENERATE VERIFICATION CODE
 // =========================================
 
 const generateVerificationCode = () => {
-
     return Math.floor(
-        100000 +
-        Math.random() * 900000
+        100000 + Math.random() * 900000
     ).toString();
+};
 
+
+// =========================================
+// GET FRONTEND URL
+// =========================================
+
+const getFrontendUrl = () => {
+    return (
+        process.env.CLIENT_URL ||
+        process.env.FRONTEND_URL ||
+        "http://localhost:5173"
+    ).replace(/\/$/, "");
 };
 
 
@@ -43,10 +51,7 @@ const generateVerificationCode = () => {
 // REGISTER
 // =========================================
 
-export const register = async (
-    req,
-    res
-) => {
+export const register = async (req, res) => {
 
     try {
 
@@ -57,23 +62,16 @@ export const register = async (
         } = req.body;
 
 
-        // -----------------------------
+        // =========================================
         // VALIDATION
-        // -----------------------------
+        // =========================================
 
-        if (
-            !name ||
-            !email ||
-            !password
-        ) {
+        if (!name || !email || !password) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "Name, email and password are required",
-
             });
 
         }
@@ -82,26 +80,24 @@ export const register = async (
         if (password.length < 6) {
 
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "Password must be at least 6 characters",
-
             });
 
         }
 
 
         const normalizedEmail =
-            email
-                .trim()
-                .toLowerCase();
+            email.trim().toLowerCase();
+
+        const trimmedName =
+            name.trim();
 
 
-        // -----------------------------
+        // =========================================
         // CHECK EXISTING USER
-        // -----------------------------
+        // =========================================
 
         const existingUser =
             await User.findOne({
@@ -109,32 +105,30 @@ export const register = async (
             });
 
 
+        // =========================================
+        // EXISTING USER
+        // =========================================
+
         if (existingUser) {
 
             // Already verified
-
-            if (
-                existingUser.isEmailVerified
-            ) {
+            if (existingUser.isEmailVerified) {
 
                 return res.status(409).json({
-
                     success: false,
-
                     message:
                         "User already exists",
-
                 });
 
             }
 
 
-            // Existing but not verified
-            // Generate a new OTP
+            // =========================================
+            // EXISTING USER BUT NOT VERIFIED
+            // =========================================
 
             const verificationCode =
                 generateVerificationCode();
-
 
             const verificationCodeExpires =
                 new Date(
@@ -144,7 +138,7 @@ export const register = async (
 
 
             existingUser.name =
-                name.trim();
+                trimmedName;
 
             existingUser.password =
                 await bcrypt.hash(
@@ -162,34 +156,60 @@ export const register = async (
             await existingUser.save();
 
 
-            await sendVerificationEmail(
-                existingUser.email,
-                existingUser.name,
-                verificationCode
-            );
+            // =========================================
+            // VERIFICATION LINK
+            // =========================================
+
+            const verificationLink =
+                `${getFrontendUrl()}/verify-email?email=${encodeURIComponent(
+                    existingUser.email
+                )}&code=${verificationCode}`;
+
+
+            // =========================================
+            // SEND EMAIL
+            // =========================================
+
+            try {
+
+                await sendVerificationEmail(
+                    existingUser.email,
+                    existingUser.name,
+                    verificationCode,
+                    verificationLink
+                );
+
+            } catch (emailError) {
+
+                console.error(
+                    "Verification email error:",
+                    emailError
+                );
+
+                return res.status(500).json({
+                    success: false,
+                    message:
+                        "Unable to send verification email. Please try again.",
+                });
+
+            }
 
 
             return res.status(200).json({
-
                 success: true,
-
-                requiresVerification:
-                    true,
-
+                requiresVerification: true,
                 message:
                     "Verification code sent to your email",
-
                 email:
                     existingUser.email,
-
             });
 
         }
 
 
-        // -----------------------------
+        // =========================================
         // HASH PASSWORD
-        // -----------------------------
+        // =========================================
 
         const hashedPassword =
             await bcrypt.hash(
@@ -198,13 +218,12 @@ export const register = async (
             );
 
 
-        // -----------------------------
+        // =========================================
         // GENERATE OTP
-        // -----------------------------
+        // =========================================
 
         const verificationCode =
             generateVerificationCode();
-
 
         const verificationCodeExpires =
             new Date(
@@ -213,14 +232,14 @@ export const register = async (
             );
 
 
-        // -----------------------------
+        // =========================================
         // CREATE USER
-        // -----------------------------
+        // =========================================
 
         const user =
             await User.create({
 
-                name: name.trim(),
+                name: trimmedName,
 
                 email:
                     normalizedEmail,
@@ -238,16 +257,27 @@ export const register = async (
             });
 
 
-        // -----------------------------
-        // SEND EMAIL
-        // -----------------------------
+        // =========================================
+        // VERIFICATION LINK
+        // =========================================
+
+        const verificationLink =
+            `${getFrontendUrl()}/verify-email?email=${encodeURIComponent(
+                user.email
+            )}&code=${verificationCode}`;
+
+
+        // =========================================
+        // SEND VERIFICATION EMAIL
+        // =========================================
 
         try {
 
             await sendVerificationEmail(
                 user.email,
                 user.name,
-                verificationCode
+                verificationCode,
+                verificationLink
             );
 
         } catch (emailError) {
@@ -258,26 +288,24 @@ export const register = async (
             );
 
 
+            // Remove account if email couldn't be sent
             await User.findByIdAndDelete(
                 user._id
             );
 
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Unable to send verification email. Please try again.",
-
             });
 
         }
 
 
-        // -----------------------------
+        // =========================================
         // RESPONSE
-        // -----------------------------
+        // =========================================
 
         return res.status(201).json({
 
@@ -321,10 +349,7 @@ export const register = async (
 // VERIFY EMAIL
 // =========================================
 
-export const verifyEmail = async (
-    req,
-    res
-) => {
+export const verifyEmail = async (req, res) => {
 
     try {
 
@@ -334,10 +359,7 @@ export const verifyEmail = async (
         } = req.body;
 
 
-        if (
-            !email ||
-            !verificationCode
-        ) {
+        if (!email || !verificationCode) {
 
             return res.status(400).json({
 
@@ -352,14 +374,12 @@ export const verifyEmail = async (
 
 
         const normalizedEmail =
-            email
-                .trim()
-                .toLowerCase();
+            email.trim().toLowerCase();
 
 
-        // -----------------------------
+        // =========================================
         // FIND USER
-        // -----------------------------
+        // =========================================
 
         const user =
             await User.findOne({
@@ -383,13 +403,11 @@ export const verifyEmail = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // ALREADY VERIFIED
-        // -----------------------------
+        // =========================================
 
-        if (
-            user.isEmailVerified
-        ) {
+        if (user.isEmailVerified) {
 
             return res.status(400).json({
 
@@ -403,9 +421,9 @@ export const verifyEmail = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // CHECK OTP
-        // -----------------------------
+        // =========================================
 
         if (
             user.verificationCode !==
@@ -424,14 +442,14 @@ export const verifyEmail = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // CHECK EXPIRATION
-        // -----------------------------
+        // =========================================
 
         if (
             !user.verificationCodeExpires ||
             user.verificationCodeExpires <
-                new Date()
+            new Date()
         ) {
 
             return res.status(400).json({
@@ -446,9 +464,9 @@ export const verifyEmail = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // VERIFY USER
-        // -----------------------------
+        // =========================================
 
         user.isEmailVerified =
             true;
@@ -463,9 +481,9 @@ export const verifyEmail = async (
         await user.save();
 
 
-        // -----------------------------
+        // =========================================
         // GENERATE TOKEN
-        // -----------------------------
+        // =========================================
 
         const token =
             generateToken(
@@ -522,10 +540,7 @@ export const verifyEmail = async (
 // =========================================
 
 export const resendVerificationCode =
-    async (
-        req,
-        res
-    ) => {
+    async (req, res) => {
 
         try {
 
@@ -549,9 +564,7 @@ export const resendVerificationCode =
 
 
             const normalizedEmail =
-                email
-                    .trim()
-                    .toLowerCase();
+                email.trim().toLowerCase();
 
 
             const user =
@@ -574,9 +587,11 @@ export const resendVerificationCode =
             }
 
 
-            if (
-                user.isEmailVerified
-            ) {
+            // =========================================
+            // ALREADY VERIFIED
+            // =========================================
+
+            if (user.isEmailVerified) {
 
                 return res.status(400).json({
 
@@ -590,13 +605,12 @@ export const resendVerificationCode =
             }
 
 
-            // -----------------------------
-            // NEW OTP
-            // -----------------------------
+            // =========================================
+            // GENERATE NEW OTP
+            // =========================================
 
             const verificationCode =
                 generateVerificationCode();
-
 
             const verificationCodeExpires =
                 new Date(
@@ -615,14 +629,25 @@ export const resendVerificationCode =
             await user.save();
 
 
-            // -----------------------------
+            // =========================================
+            // VERIFICATION LINK
+            // =========================================
+
+            const verificationLink =
+                `${getFrontendUrl()}/verify-email?email=${encodeURIComponent(
+                    user.email
+                )}&code=${verificationCode}`;
+
+
+            // =========================================
             // SEND EMAIL
-            // -----------------------------
+            // =========================================
 
             await sendVerificationEmail(
                 user.email,
                 user.name,
-                verificationCode
+                verificationCode,
+                verificationLink
             );
 
 
@@ -662,10 +687,7 @@ export const resendVerificationCode =
 // LOGIN
 // =========================================
 
-export const login = async (
-    req,
-    res
-) => {
+export const login = async (req, res) => {
 
     try {
 
@@ -675,10 +697,7 @@ export const login = async (
         } = req.body;
 
 
-        if (
-            !email ||
-            !password
-        ) {
+        if (!email || !password) {
 
             return res.status(400).json({
 
@@ -717,13 +736,11 @@ export const login = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // EMAIL VERIFICATION CHECK
-        // -----------------------------
+        // =========================================
 
-        if (
-            !user.isEmailVerified
-        ) {
+        if (!user.isEmailVerified) {
 
             return res.status(403).json({
 
@@ -743,9 +760,9 @@ export const login = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // PASSWORD CHECK
-        // -----------------------------
+        // =========================================
 
         const isPasswordCorrect =
             await bcrypt.compare(
@@ -768,9 +785,9 @@ export const login = async (
         }
 
 
-        // -----------------------------
+        // =========================================
         // JWT
-        // -----------------------------
+        // =========================================
 
         const token =
             generateToken(
